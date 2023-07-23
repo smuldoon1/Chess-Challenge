@@ -5,6 +5,7 @@ using System.Linq;
 
 public class MyBot : IChessBot
 {
+    // Base piece values
     readonly Dictionary<PieceType, float> PieceValues = new()
     {
         { PieceType.Pawn, 1f },
@@ -12,7 +13,7 @@ public class MyBot : IChessBot
         { PieceType.Bishop, 3f },
         { PieceType.Rook, 5f },
         { PieceType.Queen, 9f },
-        { PieceType.King, 1000f }
+        { PieceType.King, 1000f } // King is given a very high value to always prioritise its safety
     };
 
     public Move Think(Board board, Timer timer)
