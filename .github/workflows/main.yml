@@ -1,0 +1,20 @@
+name: Merge to Develop-7
+
+on:
+  push:
+    branches:
+      - 'basic-bot-1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Run Your Custom Script
+      run: |
+        # Add your custom commands here
+        echo "Branch merged into develop-7!"
+        # Replace the above line with your actual script commands
