@@ -3,7 +3,7 @@ name: Merge to Develop-7
 on:
   push:
     branches:
-      - 'basic-bot-1'
+      - 'main'
 
 jobs:
   build:
