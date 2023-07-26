@@ -1,5 +1,6 @@
 ﻿using ChessChallenge.API;
 using System;
+using System.Collections.Generic;
 
 namespace ChessChallenge.Example
 {
@@ -7,48 +8,87 @@ namespace ChessChallenge.Example
     // Plays randomly otherwise.
     public class EvilBot : IChessBot
     {
-        // Piece values: null, pawn, knight, bishop, rook, queen, king
-        int[] pieceValues = { 0, 100, 300, 300, 500, 900, 10000 };
+        // Base piece values
+        readonly Dictionary<PieceType, int> PieceValues = new()
+    {
+        { PieceType.Pawn, 100 },
+        { PieceType.Knight, 300 },
+        { PieceType.Bishop, 300 },
+        { PieceType.Rook, 500 },
+        { PieceType.Queen, 900 },
+        { PieceType.King, 10000 } // King is given a very high value to always prioritise its safety
+    };
 
         public Move Think(Board board, Timer timer)
         {
-            Move[] allMoves = board.GetLegalMoves();
-
-            // Pick a random move to play if nothing better is found
-            Random rng = new();
-            Move moveToPlay = allMoves[rng.Next(allMoves.Length)];
-            int highestValueCapture = 0;
-
-            foreach (Move move in allMoves)
-            {
-                // Always play checkmate in one
-                if (MoveIsCheckmate(board, move))
-                {
-                    moveToPlay = move;
-                    break;
-                }
-
-                // Find highest value capture
-                Piece capturedPiece = board.GetPiece(move.TargetSquare);
-                int capturedPieceValue = pieceValues[(int)capturedPiece.PieceType];
-
-                if (capturedPieceValue > highestValueCapture)
-                {
-                    moveToPlay = move;
-                    highestValueCapture = capturedPieceValue;
-                }
-            }
-
-            return moveToPlay;
+            return Minimax(board, board.IsWhiteToMove, int.MinValue, int.MaxValue, 3).move;
         }
 
-        // Test if this move gives checkmate
-        bool MoveIsCheckmate(Board board, Move move)
+        public (Move move, int score) Minimax(Board board, bool isWhite, int alpha, int beta, int depth)
         {
-            board.MakeMove(move);
-            bool isMate = board.IsInCheckmate();
-            board.UndoMove(move);
-            return isMate;
+            if (depth == 0 || false)
+            {
+                return (Move.NullMove, GetMaterialScore(board));
+            }
+
+            if (isWhite)
+            {
+                (Move move, int score) bestMove = (Move.NullMove, int.MinValue);
+                foreach (var move in board.GetLegalMoves())
+                {
+                    board.MakeMove(move);
+                    var nextMove = Minimax(board, !isWhite, alpha, beta, depth - 1);
+                    board.UndoMove(move);
+
+                    if (nextMove.score > bestMove.score)
+                    {
+                        bestMove = (move, nextMove.score);
+                    }
+
+                    alpha = Math.Max(alpha, nextMove.score);
+                    if (beta <= alpha)
+                        break;
+                }
+                return bestMove;
+            }
+            else
+            {
+                (Move move, int score) bestMove = (Move.NullMove, int.MaxValue);
+                foreach (var move in board.GetLegalMoves())
+                {
+                    board.MakeMove(move);
+                    var nextMove = Minimax(board, !isWhite, alpha, beta, depth - 1);
+                    board.UndoMove(move);
+
+                    if (nextMove.score < bestMove.score)
+                    {
+                        bestMove = (move, nextMove.score);
+                    }
+
+                    beta = Math.Min(beta, nextMove.score);
+                    if (beta <= alpha)
+                        break;
+                }
+                return bestMove;
+            }
+        }
+
+        // Get the score 
+        int GetMaterialScore(Board board)
+        {
+            int whiteScore = 0;
+            foreach (var pieceType in PieceValues.Keys)
+            {
+                whiteScore += board.GetPieceList(pieceType, white: true).Count * PieceValues[pieceType];
+            }
+
+            int blackScore = 0;
+            foreach (var pieceType in PieceValues.Keys)
+            {
+                blackScore += board.GetPieceList(pieceType, white: false).Count * PieceValues[pieceType];
+            }
+
+            return whiteScore - blackScore;
         }
     }
 }

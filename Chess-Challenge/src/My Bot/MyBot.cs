@@ -6,93 +6,85 @@ using System.Linq;
 public class MyBot : IChessBot
 {
     // Base piece values
-    readonly Dictionary<PieceType, float> PieceValues = new()
+    readonly Dictionary<PieceType, int> PieceValues = new()
     {
-        { PieceType.Pawn, 1f },
-        { PieceType.Knight, 3f },
-        { PieceType.Bishop, 3f },
-        { PieceType.Rook, 5f },
-        { PieceType.Queen, 9f },
-        { PieceType.King, 1000f } // King is given a very high value to always prioritise its safety
+        { PieceType.Pawn, 100 },
+        { PieceType.Knight, 300 },
+        { PieceType.Bishop, 300 },
+        { PieceType.Rook, 500 },
+        { PieceType.Queen, 900 },
+        { PieceType.King, 10000 } // King is given a very high value to always prioritise its safety
     };
 
     public Move Think(Board board, Timer timer)
     {
-        List<(Move move, float rating)> moveRatings = new();
-
-        foreach (var move in board.GetLegalMoves())
-        {
-            moveRatings.Add((move, EvaluateBoard(board, move)));
-        }
-
-        var bestMove = moveRatings.OrderByDescending(x => x.rating).ThenBy(_ => Random.Shared.Next()).First().move;
-        return bestMove;
+        return Minimax(board, board.IsWhiteToMove, int.MinValue, int.MaxValue, 6).move;
     }
 
-    public float EvaluateBoard(Board board, Move move)
+    public (Move move, int score) Minimax(Board board, bool isWhite, int alpha, int beta, int depth)
     {
-        board.MakeMove(move);
-
-        float returnScore;
-
-        // If checkmate in one, this move is best
-        if (board.IsInCheckmate())
-            returnScore = 100000f;
-
-        // If move is a draw
-        else if (board.IsDraw())
+        if (depth == 0 || false)
         {
-            // If down on material, take the draw
-            if (GetMaterialScore(board) < 0)
-                returnScore = 100000f;
-            else
-            // If up on material, avoid the draw
-                returnScore = -100000f;
+            return (Move.NullMove, EvaluateBoard(board));
         }
 
-        // Else, rate the move based on a response from the opponent in the next move if this move is made
+        if (isWhite)
+        {
+            (Move move, int score) bestMove = (Move.NullMove, int.MinValue);
+            foreach (var move in board.GetLegalMoves())
+            {
+                board.MakeMove(move);
+                var nextMove = Minimax(board, !isWhite, alpha, beta, depth - 1);
+                board.UndoMove(move);
+
+                if (nextMove.score > bestMove.score)
+                {
+                    bestMove = (move, nextMove.score);
+                }
+
+                alpha = Math.Max(alpha, nextMove.score);
+                if (beta <= alpha)
+                    break;
+            }
+            return bestMove;
+        }
         else
         {
-            var nextMoveRating = 10000f;
-
-            // For each legal response from the opponent.
-            foreach (Move nextMove in board.GetLegalMoves())
+            (Move move, int score) bestMove = (Move.NullMove, int.MaxValue);
+            foreach (var move in board.GetLegalMoves())
             {
-                board.MakeMove(nextMove);
+                board.MakeMove(move);
+                var nextMove = Minimax(board, !isWhite, alpha, beta, depth - 1);
+                board.UndoMove(move);
 
-                // If opponent will be able to checkmate, avoid the move
-                if (board.IsInCheckmate())
-                    nextMoveRating = -100000f;
+                if (nextMove.score < bestMove.score)
+                {
+                    bestMove = (move, nextMove.score);
+                }
 
-                var boardScore = -GetMaterialScore(board);
-
-                board.UndoMove(nextMove);
-
-                // Always take the lowest rating
-                nextMoveRating = Math.Min(nextMoveRating, boardScore);
+                beta = Math.Min(beta, nextMove.score);
+                if (beta <= alpha)
+                    break;
             }
-
-            returnScore = nextMoveRating;
+            return bestMove;
         }
-        board.UndoMove(move);
-        return returnScore;
     }
 
     // Get the score 
-    float GetMaterialScore(Board board)
+    int EvaluateBoard(Board board)
     {
-        float whiteScore = 0f;
+        int whiteScore = 0;
         foreach (var pieceType in PieceValues.Keys)
         {
             whiteScore += board.GetPieceList(pieceType, white: true).Count * PieceValues[pieceType];
         }
 
-        float blackScore = 0f;
+        int blackScore = 0;
         foreach (var pieceType in PieceValues.Keys)
         {
             blackScore += board.GetPieceList(pieceType, white: false).Count * PieceValues[pieceType];
         }
 
-        return (whiteScore - blackScore) * (board.IsWhiteToMove ? -1f : 1f);
+        return whiteScore - blackScore;
     }
 }
