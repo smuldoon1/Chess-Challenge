@@ -18,12 +18,12 @@ public class MyBot : IChessBot
 
     public Move Think(Board board, Timer timer)
     {
-        return Minimax(board, board.IsWhiteToMove, int.MinValue, int.MaxValue, 6).move;
+        return Minimax(board, timer, board.IsWhiteToMove, int.MinValue, int.MaxValue, 20).move;
     }
 
-    public (Move move, int score) Minimax(Board board, bool isWhite, int alpha, int beta, int depth)
+    public (Move move, int score) Minimax(Board board, Timer timer, bool isWhite, int alpha, int beta, int depth)
     {
-        if (depth == 0 || false)
+        if (depth == 0 || board.GetLegalMoves().Length == 0)
         {
             return (Move.NullMove, EvaluateBoard(board));
         }
@@ -34,7 +34,7 @@ public class MyBot : IChessBot
             foreach (var move in board.GetLegalMoves())
             {
                 board.MakeMove(move);
-                var nextMove = Minimax(board, !isWhite, alpha, beta, depth - 1);
+                var nextMove = Minimax(board, timer, !isWhite, alpha, beta, depth - 1);
                 board.UndoMove(move);
 
                 if (nextMove.score > bestMove.score)
@@ -54,7 +54,7 @@ public class MyBot : IChessBot
             foreach (var move in board.GetLegalMoves())
             {
                 board.MakeMove(move);
-                var nextMove = Minimax(board, !isWhite, alpha, beta, depth - 1);
+                var nextMove = Minimax(board, timer, !isWhite, alpha, beta, depth - 1);
                 board.UndoMove(move);
 
                 if (nextMove.score < bestMove.score)
@@ -70,21 +70,28 @@ public class MyBot : IChessBot
         }
     }
 
-    // Get the score 
     int EvaluateBoard(Board board)
+    {
+        int whiteScore = 0;
+        whiteScore += EvaluateCheckmate(board);
+        whiteScore += EvaluateMaterialAdvantage(board);
+        whiteScore += Random.Shared.Next(-5, 5);
+        return whiteScore;
+    }
+
+    int EvaluateCheckmate(Board board)
+    {
+        return board.IsInCheckmate() ? (board.IsWhiteToMove ? -1000000 : 1000000) : 0;
+    }
+
+    int EvaluateMaterialAdvantage(Board board)
     {
         int whiteScore = 0;
         foreach (var pieceType in PieceValues.Keys)
         {
             whiteScore += board.GetPieceList(pieceType, white: true).Count * PieceValues[pieceType];
+            whiteScore -= board.GetPieceList(pieceType, white: false).Count * PieceValues[pieceType];
         }
-
-        int blackScore = 0;
-        foreach (var pieceType in PieceValues.Keys)
-        {
-            blackScore += board.GetPieceList(pieceType, white: false).Count * PieceValues[pieceType];
-        }
-
-        return whiteScore - blackScore;
+        return whiteScore;
     }
 }
